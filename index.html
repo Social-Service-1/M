@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>تسجيل الدخول برقم الهاتف</title>
+
+<style>
+body {
+    font-family: sans-serif;
+    background: #0d1117;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+input {
+    padding: 10px;
+    margin: 10px;
+    width: 250px;
+    border-radius: 6px;
+    border: none;
+}
+button {
+    padding: 10px 20px;
+    background: #1f6feb;
+    border: none;
+    border-radius: 6px;
+    color: white;
+    cursor: pointer;
+}
+#recaptcha-container { margin-top: 15px; }
+</style>
+</head>
+
+<body>
+
+<h2>تسجيل الدخول برقم الهاتف</h2>
+
+<input type="text" id="phone" placeholder="+20xxxxxxxxxx">
+<button onclick="sendCode()">إرسال الكود</button>
+
+<div id="recaptcha-container"></div>
+
+<input type="text" id="verify" placeholder="أدخل الكود" style="display:none;">
+<button id="verifyBtn" onclick="verifyCode()" style="display:none;">تأكيد</button>
+
+<script type="module">
+
+// ---------------------- Firebase Config ----------------------
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+import { getAuth, RecaptchaVerifier, signInWithPhoneNumber } 
+from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+import { getFirestore, doc, setDoc } 
+from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "ضع_apiKey_هنا",
+  authDomain: "ضع_authDomain_هنا",
+  projectId: "ضع_projectId_هنا",
+  storageBucket: "ضع_storageBucket_هنا",
+  messagingSenderId: "ضع_messagingSenderId_هنا",
+  appId: "ضع_appId_هنا"
+};
+// -------------------------------------------------------------
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+let confirmationResult;
+
+function initRecaptcha() {
+  window.recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
+    size: "normal"
+  });
+}
+
+initRecaptcha();
+
+window.sendCode = function() {
+  const phoneNumber = document.getElementById("phone").value;
+  signInWithPhoneNumber(auth, phoneNumber, window.recaptchaVerifier)
+    .then(result => {
+      confirmationResult = result;
+      document.getElementById("verify").style.display = "block";
+      document.getElementById("verifyBtn").style.display = "inline-block";
+      alert("تم إرسال الكود ✅");
+    })
+    .catch(error => alert("خطأ: " + error));
+}
+
+window.verifyCode = function() {
+  const code = document.getElementById("verify").value;
+  confirmationResult.confirm(code)
+    .then(async (result) => {
+      alert("تم تسجيل الدخول ✅");
+      const user = result.user;
+
+      await setDoc(doc(db, "users", user.uid), {
+        phone: user.phoneNumber,
+        lastLogin: new Date()
+      });
+
+      alert("تم حفظ البيانات في Firestore ✅");
+    })
+    .catch(error => alert("الكود غير صحيح ❌"));
+}
+
+</script>
+</body>
+</html>
